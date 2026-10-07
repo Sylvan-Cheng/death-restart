@@ -1,8 +1,22 @@
-.gradle/
-build/
-run/
-.inspect/
+# Gradle output and development game instances
+/.gradle/
+/build/
+/run/
+
+# Local inspection files and artwork drafts
+/.inspect/
+/work/
+
+# Editor and operating system files
 .idea/
 *.iml
 .vscode/
-work/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+
+# JVM crash output
+hs_err_pid*.log
+replay_pid*.log
+*.hprof

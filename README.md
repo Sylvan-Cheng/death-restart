@@ -24,10 +24,6 @@
 
 安装适用于 26.1.2 的 ModMenu 18.0.2 后，从模组列表选中「死亡重启 / Death Restart」并点击配置按钮即可打开设置页。设置会保存在游戏实例的 `config/deathrestart.json`，并在下次启动时继续使用。ModMenu 是可选依赖，未安装时仍可使用模组或在游戏关闭时编辑 JSON 配置。
 
-## 从旧版升级
-
-本版内部 ID 已改为 `deathrestart`。升级时请先移除旧的 `death-reset` JAR，避免新旧两个 ID 同时加载。首次启动时，如果检测到旧版的 `config/deathreset.json` 或 `config/deathreset/deaths/`，模组会自动复制设置和死亡榜到新的 `deathrestart` 路径；旧文件会保留作为备份。旧世界备份目录也不会被删除，新一局从此写入 `death-restart-backups/`。
-
 设置页按重置规则、客机重连、数据与显示分组；鼠标悬停会显示说明。点击「完成」或按 Esc 保存，点击「恢复默认」后仍需保存。关闭自动重连时，重连间隔和超时控件会变灰：
 
 - 世界重置倒计时：5、10、15、20、30、45 或 60 秒。
@@ -39,6 +35,12 @@
 房主的倒计时设置在下一次死亡时生效；正在进行的倒计时保持原时长。重连选项由每位客机自己设置，在下一次世界重置时生效。死亡榜由房主控制，保存后更新显示。联机端口始终复用重置前的端口，每次重置均保留旧世界备份。
 
 中文与英文跟随 Minecraft 语言设置，无需单独选择模组语言。未安装模组的客机收到英文备用提示；其他语言使用英文回退。完整双语文案见 `TEXT.md`，实际资源位于 `src/main/resources/assets/deathrestart/lang/`。
+
+## 从旧版升级
+
+本版内部 ID 已改为 `deathrestart`。升级时请先移除旧的 `death-reset` JAR，避免新旧两个 ID 同时加载。首次启动时，如果检测到旧版的 `config/deathreset.json` 或 `config/deathreset/deaths/`，模组会自动复制设置和死亡榜到新的 `deathrestart` 路径；旧文件会保留作为备份。旧世界备份目录也不会被删除，新一局从此写入 `death-restart-backups/`。
+
+版本变化见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 重置内容
 
@@ -71,16 +73,18 @@ death-restart-backups/<原存档目录>-<时间>-<随机编号>/
 
 安装用 JAR 位于 `build/libs/`；带 `-sources` 的 JAR 是源码包。
 
-JUnit 测试覆盖倒计时边界、重复死亡、卡顿后的倒计时、三维度和玩家进度备份、恢复、非法目录拒绝、连续重置，以及死亡统计持久化、改名与存档隔离。双客户端集成测试使用普通开发客户端，通过真实原版世界创建、Fabric LAN 连接和玩家死亡执行完整流程。
+单元测试覆盖倒计时、世界备份与恢复、死亡统计和配置迁移。联机测试运行方法、验证范围与截图见 [docs/TESTING.md](docs/TESTING.md)。
 
-在两个终端运行以下命令即可复现联机集成测试。测试只使用项目 `build` 下的独立游戏目录。重跑前，将已有 `build/lan-test-sync` 文件夹改名移开，避免读到前次测试的通信文件。
+## 项目文件
 
-```powershell
-.\gradlew.bat runLanTestHost
-.\gradlew.bat runLanTestGuest
-```
-
-测试场景包括客机死亡、房主死亡、连续两次重开、随机种子变化、原端口复用、双方背包/经验清空、旧建筑清空、游戏规则保留、死亡榜显示和累计次数保留，以及客机两次自动重连。通过标记位于 `build/lan-test-sync/host-passed.txt` 与 `guest-passed.txt`。重跑时也应将之前的 `build/lan-test-host`、`build/lan-test-guest` 目录改名移开，以使用全新的独立测试实例。
+| 路径 | 用途 |
+| --- | --- |
+| `src/main/`、`src/client/` | 模组逻辑、客户端界面与语言资源 |
+| `src/test/`、`src/integration/` | 单元测试与双客户端联机测试 |
+| [TEXT.md](TEXT.md) | 可编辑的完整中英文文案 |
+| [docs/TESTING.md](docs/TESTING.md)、`docs/screenshots/` | 测试方法、验证记录与游戏截图 |
+| `docs/artwork/icon-source.png` | 最终图标的原始素材 |
+| `build/libs/` | 构建生成的安装包和源码包，不纳入 Git |
 
 ## 实现参考
 
