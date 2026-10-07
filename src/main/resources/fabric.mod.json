@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "deathreset",
+  "version": "${version}",
+  "name": "Death Reset / 一死重开",
+  "description": "In LAN multiplayer, any player death starts a 10-second countdown, then rebuilds the world with a new seed and reopens LAN. Modded guests reconnect automatically.",
+  "authors": ["Sylvan"],
+  "license": "LGPL-3.0-only",
+  "icon": "assets/deathreset/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "main": ["local.sylvan.deathreset.DeathResetMod"],
+    "client": ["local.sylvan.deathreset.client.DeathResetClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "26.1.2",
+    "java": ">=25",
+    "fabric-api": ">=0.155.3"
+  }
+}
+
