@@ -1,4 +1,4 @@
-package local.sylvan.deathreset;
+package local.sylvan.deathrestart;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;

@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "local.sylvan.deathrestart.client.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "ConnectScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

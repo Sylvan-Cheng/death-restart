@@ -1,5 +1,6 @@
-package local.sylvan.deathreset.client;
+package local.sylvan.deathrestart.client;
 
+import local.sylvan.deathrestart.DeathRestartConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.DisconnectedScreen;
@@ -16,8 +17,15 @@ final class GuestReconnect {
     private boolean disconnected;
     private boolean showedWaitingScreen;
     private int attempts;
+    private long intervalNanos;
+    private long timeoutNanos;
 
     void arm(Minecraft client) {
+        var settings = DeathRestartConfig.get();
+        if (!settings.automaticReconnect()) {
+            cancel();
+            return;
+        }
         if (client.hasSingleplayerServer() || client.getCurrentServer() == null) return;
         var current = client.getCurrentServer();
         target = new ServerData(current.name, current.ip, current.type());
@@ -26,6 +34,8 @@ final class GuestReconnect {
         disconnected = false;
         showedWaitingScreen = false;
         attempts = 0;
+        intervalNanos = settings.reconnectIntervalSeconds() * 1_000_000_000L;
+        timeoutNanos = settings.reconnectTimeoutSeconds() * 1_000_000_000L;
     }
 
     void onDisconnect() {
@@ -36,8 +46,8 @@ final class GuestReconnect {
             return;
         }
         disconnected = true;
-        deadline = now + 120_000_000_000L;
-        nextAttempt = now + 3_000_000_000L;
+        deadline = now + timeoutNanos;
+        nextAttempt = now + intervalNanos;
     }
 
     void onJoin() {
@@ -47,6 +57,12 @@ final class GuestReconnect {
     void cancel() {
         target = null;
         disconnected = false;
+    }
+
+    private void abortConnectingScreen(Minecraft client) {
+        if (client.screen instanceof ConnectScreen screen && screen instanceof ConnectScreenAccess access) {
+            access.deathrestart$abortConnection();
+        }
     }
 
     void tick(Minecraft client) {
@@ -61,7 +77,11 @@ final class GuestReconnect {
             return;
         }
         if (now >= deadline) {
-            if (client.screen instanceof ReconnectScreen waiting) waiting.timedOut();
+            String address = target.ip;
+            abortConnectingScreen(client);
+            ReconnectScreen timeout = new ReconnectScreen(this, address, attempts);
+            timeout.timedOut();
+            client.setScreen(timeout);
             cancel();
             return;
         }
@@ -71,14 +91,14 @@ final class GuestReconnect {
             return;
         }
         if (client.screen instanceof DisconnectedScreen) {
-            client.setScreen(new ReconnectScreen(this, target.ip));
+            client.setScreen(new ReconnectScreen(this, target.ip, attempts));
             showedWaitingScreen = true;
         }
-        if (client.screen instanceof ReconnectScreen waiting && now >= nextAttempt) {
-            nextAttempt = now + 5_000_000_000L;
+        if (client.screen instanceof ReconnectScreen && now >= nextAttempt) {
+            nextAttempt = now + intervalNanos;
             attempts++;
-            waiting.setAttempt(attempts);
-            ConnectScreen.startConnecting(new TitleScreen(), client, ServerAddress.parseString(target.ip), target, false, null);
+            ConnectScreen.startConnecting(new TitleScreen(), client,
+                    ServerAddress.parseString(target.ip), target, false, null);
         }
     }
 }

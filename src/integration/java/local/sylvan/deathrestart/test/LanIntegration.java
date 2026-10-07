@@ -1,10 +1,10 @@
-package local.sylvan.deathreset.test;
+package local.sylvan.deathrestart.test;
 
 import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
-import local.sylvan.deathreset.DeathResetMod;
+import local.sylvan.deathrestart.DeathRestartMod;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -30,8 +30,8 @@ import net.minecraft.world.scores.DisplaySlot;
 /** Test-only orchestration in two ordinary clients, without altering vanilla thread scheduling. */
 public final class LanIntegration implements ClientModInitializer {
     private static final BlockPos MARKER = new BlockPos(10, 200, 10);
-    private final boolean host = System.getProperty("deathreset.test.role", "host").equals("host");
-    private final Path sync = Path.of(System.getProperty("deathreset.test.sync"));
+    private final boolean host = System.getProperty("deathrestart.test.role", "host").equals("host");
+    private final Path sync = Path.of(System.getProperty("deathrestart.test.sync"));
     private int stage;
     private int round;
     private int port;
@@ -53,7 +53,7 @@ public final class LanIntegration implements ClientModInitializer {
                 if (host) tickHost(client); else tickGuest(client);
             } catch (Throwable failure) {
                 stage = -1;
-                DeathResetMod.LOGGER.error("LAN integration failed", failure);
+                DeathRestartMod.LOGGER.error("LAN integration failed", failure);
                 try {
                     Files.createDirectories(sync);
                     Files.writeString(sync.resolve((host ? "host" : "guest") + "-failed.txt"), failure.toString());
@@ -71,8 +71,8 @@ public final class LanIntegration implements ClientModInitializer {
             client.options.renderDistance().set(6);
             client.options.simulationDistance().set(5);
             stage = 1;
-            client.createWorldOpenFlows().createFreshLevel("DeathResetIntegration",
-                    new LevelSettings("Death Reset LAN Test", GameType.SURVIVAL,
+            client.createWorldOpenFlows().createFreshLevel("DeathRestartIntegration",
+                    new LevelSettings("Death Restart LAN Test", GameType.SURVIVAL,
                             new LevelSettings.DifficultySettings(Difficulty.HARD, false, false), true, WorldDataConfiguration.DEFAULT),
                     new WorldOptions(123456789L, true, false), WorldPresets::createNormalWorldDimensions, new TitleScreen());
         } else if (stage == 1 && ready(client)) {
@@ -101,7 +101,7 @@ public final class LanIntegration implements ClientModInitializer {
                     server.getPlayerList().getPlayers().forEach(p -> p.giveExperienceLevels(23));
                     server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "give @a minecraft:diamond 7");
                     server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "advancement grant @a only minecraft:story/root");
-                    String victim = round == 0 ? "DeathResetGuest" : "DeathResetHost";
+                    String victim = round == 0 ? "DeathRestartGuest" : "DeathRestartHost";
                     server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "kill " + victim);
                 });
                 stage = 3;
@@ -130,9 +130,9 @@ public final class LanIntegration implements ClientModInitializer {
                 check(next.getGameRules().get(GameRules.KEEP_INVENTORY), "Preserve game rules");
                 check(!next.overworld().getBlockState(MARKER).is(Blocks.DIAMOND_BLOCK), "Clear old terrain and buildings");
                 var objective = next.getScoreboard().getDisplayObjective(DisplaySlot.SIDEBAR);
-                check(objective != null && objective.getName().equals("deathreset_deaths"), "Show sidebar death leaderboard");
+                check(objective != null && objective.getName().equals("deathrestart_deaths"), "Show sidebar death leaderboard");
                 var previousGuest = next.getScoreboard().listPlayerScores(objective).stream()
-                        .filter(entry -> entry.display() != null && entry.display().getString().equals("DeathResetGuest")).findFirst().orElseThrow();
+                        .filter(entry -> entry.display() != null && entry.display().getString().equals("DeathRestartGuest")).findFirst().orElseThrow();
                 check(previousGuest.value() == 1, "Retain guest's death count after world reset");
                 return newSeed;
             });
@@ -183,7 +183,7 @@ public final class LanIntegration implements ClientModInitializer {
             String address = "127.0.0.1:" + Files.readString(sync.resolve("port.txt")).trim();
             stage = 1;
             ConnectScreen.startConnecting(new TitleScreen(), client, ServerAddress.parseString(address),
-                    new ServerData("Death Reset test", address, ServerData.Type.LAN), false, null);
+                    new ServerData("Death Restart test", address, ServerData.Type.LAN), false, null);
         } else if (stage == 1 && ready(client)) {
             previousLevel = client.level;
             Files.writeString(sync.resolve("guest-ready.txt"), "ready");

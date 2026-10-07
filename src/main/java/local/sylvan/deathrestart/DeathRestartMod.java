@@ -1,4 +1,4 @@
-package local.sylvan.deathreset;
+package local.sylvan.deathrestart;
 
 import java.util.function.Consumer;
 import net.fabricmc.api.ModInitializer;
@@ -18,8 +18,8 @@ import net.minecraft.world.level.storage.LevelResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class DeathResetMod implements ModInitializer {
-    public static final Logger LOGGER = LoggerFactory.getLogger("deathreset");
+public final class DeathRestartMod implements ModInitializer {
+    public static final Logger LOGGER = LoggerFactory.getLogger("deathrestart");
     private static Consumer<ResetRequest> resetHandler;
     private MinecraftServer activeServer;
     private ResetCountdown countdown = new ResetCountdown();
@@ -33,8 +33,10 @@ public final class DeathResetMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        DeathRestartConfig.load();
         // Official Fabric API: AFTER_DEATH runs after an actual death, so totems do not trigger it.
-        // https://maven.fabricmc.net/docs/fabric-api-0.155.3+26.1.2/net/fabricmc/fabric/api/entity/event/v1/ServerLivingEntityEvents.html
+        // Docs: https://maven.fabricmc.net/docs/fabric-api-0.155.3+26.1.2/
+        // net/fabricmc/fabric/api/entity/event/v1/ServerLivingEntityEvents.html
         PayloadTypeRegistry.clientboundPlay().register(ResetNoticePayload.TYPE, ResetNoticePayload.CODEC);
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
             if (entity instanceof ServerPlayer player) onDeath(player);
@@ -57,16 +59,17 @@ public final class DeathResetMod implements ModInitializer {
         leaderboard.recordDeath(player);
         if (activeServer != server) {
             activeServer = server;
-            countdown = new ResetCountdown();
+            countdown = new ResetCountdown(DeathRestartConfig.get().resetCountdownSeconds());
             lastSecond = -1;
         }
         if (countdown.start(System.nanoTime())) {
             deadPlayer = player.getPlainTextName();
             server.getPlayerList().broadcastSystemMessage(
-                    Component.literal(deadPlayer + " 已死亡！世界将于 10 秒后重置。")
+                    Component.translatableWithFallback("deathrestart.death_broadcast",
+                            "%s died! The world will reset in %s seconds.", deadPlayer, countdown.durationSeconds())
                             .withStyle(ChatFormatting.RED), false);
-            showCountdown(server, ResetCountdown.SECONDS);
-            LOGGER.info("{} died; resetting LAN world in {} seconds", deadPlayer, ResetCountdown.SECONDS);
+            showCountdown(server, countdown.durationSeconds());
+            LOGGER.info("{} died; resetting LAN world in {} seconds", deadPlayer, countdown.durationSeconds());
         }
     }
 
@@ -83,7 +86,8 @@ public final class DeathResetMod implements ModInitializer {
                 server.getWorldGenSettings().options().seed(), server.getPort(),
                 server.getForcedGameType(), server.getPlayerList().isAllowCommandsForAllPlayers());
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (!server.isSingleplayerOwner(player.nameAndId()) && ServerPlayNetworking.canSend(player, ResetNoticePayload.TYPE)) {
+            if (!server.isSingleplayerOwner(player.nameAndId())
+                    && ServerPlayNetworking.canSend(player, ResetNoticePayload.TYPE)) {
                 ServerPlayNetworking.send(player, ResetNoticePayload.INSTANCE);
             }
         }
@@ -95,10 +99,13 @@ public final class DeathResetMod implements ModInitializer {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             player.connection.send(new ClientboundSetTitlesAnimationPacket(0, 25, 0));
             player.connection.send(new ClientboundSetSubtitleTextPacket(
-                    Component.literal(deadPlayer + " 已死亡 · 即将重置世界").withStyle(ChatFormatting.YELLOW)));
+                    Component.translatableWithFallback("deathrestart.countdown_subtitle",
+                            "%s died · World reset incoming", deadPlayer).withStyle(ChatFormatting.YELLOW)));
             player.connection.send(new ClientboundSetTitleTextPacket(
-                    Component.literal(seconds + " 秒").withStyle(ChatFormatting.RED)));
-            player.sendSystemMessage(Component.literal("世界重置倒计时：" + seconds + " 秒"), true);
+                    Component.translatableWithFallback("deathrestart.countdown_seconds", "%s seconds", seconds)
+                            .withStyle(ChatFormatting.RED)));
+            player.sendSystemMessage(Component.translatableWithFallback("deathrestart.countdown_actionbar",
+                    "World reset countdown: %s seconds", seconds), true);
         }
     }
 }

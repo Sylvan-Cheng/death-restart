@@ -1,22 +1,28 @@
 {
   "schemaVersion": 1,
-  "id": "deathreset",
+  "id": "deathrestart",
   "version": "${version}",
-  "name": "Death Reset / 一死重开",
-  "description": "In LAN multiplayer, any player death starts a 10-second countdown, then rebuilds the world with a new seed and reopens LAN. Modded guests reconnect automatically.",
+  "name": "Death Restart / 死亡重启",
+  "description": "In LAN multiplayer, any player death starts a configurable countdown (10 seconds by default), then rebuilds the world with a new seed on the same port. Includes a cumulative death leaderboard and auto-reconnect for modded guests.",
   "authors": ["Sylvan"],
   "license": "LGPL-3.0-only",
-  "icon": "assets/deathreset/icon.png",
+  "icon": "assets/deathrestart/icon.png",
   "environment": "client",
+  "mixins": [
+    "deathrestart.mixins.json"
+  ],
   "entrypoints": {
-    "main": ["local.sylvan.deathreset.DeathResetMod"],
-    "client": ["local.sylvan.deathreset.client.DeathResetClient"]
+    "main": ["local.sylvan.deathrestart.DeathRestartMod"],
+    "client": ["local.sylvan.deathrestart.client.DeathRestartClient"],
+    "modmenu": ["local.sylvan.deathrestart.client.DeathRestartModMenu"]
   },
   "depends": {
     "fabricloader": ">=0.19.5",
     "minecraft": "26.1.2",
     "java": ">=25",
     "fabric-api": ">=0.155.3"
+  },
+  "suggests": {
+    "modmenu": ">=18.0.2"
   }
 }
-

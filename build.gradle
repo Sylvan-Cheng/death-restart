@@ -8,13 +8,14 @@ base { archivesName = project.archives_base_name }
 
 repositories {
     maven { url = 'https://mirrors.huaweicloud.com/repository/maven' }
+    maven { url = 'https://maven.terraformersmc.com/releases/' }
     mavenCentral()
 }
 
 loom {
     splitEnvironmentSourceSets()
     mods {
-        deathreset {
+        deathrestart {
             sourceSet sourceSets.main
             sourceSet sourceSets.client
         }
@@ -30,24 +31,24 @@ sourceSets {
 }
 loom {
     mods {
-        'deathreset-integration' { sourceSet sourceSets.integration }
+        'deathrestart-integration' { sourceSet sourceSets.integration }
     }
     runs {
         lanTestHost {
             client()
             source sourceSets.integration
             runDir 'build/lan-test-host'
-            programArgs '--username', 'DeathResetHost'
-            vmArg '-Ddeathreset.test.role=host'
-            vmArg "-Ddeathreset.test.sync=${layout.buildDirectory.dir('lan-test-sync').get().asFile.absolutePath}"
+            programArgs '--username', 'DeathRestartHost'
+            vmArg '-Ddeathrestart.test.role=host'
+            vmArg "-Ddeathrestart.test.sync=${layout.buildDirectory.dir('lan-test-sync').get().asFile.absolutePath}"
         }
         lanTestGuest {
             client()
             source sourceSets.integration
             runDir 'build/lan-test-guest'
-            programArgs '--username', 'DeathResetGuest'
-            vmArg '-Ddeathreset.test.role=guest'
-            vmArg "-Ddeathreset.test.sync=${layout.buildDirectory.dir('lan-test-sync').get().asFile.absolutePath}"
+            programArgs '--username', 'DeathRestartGuest'
+            vmArg '-Ddeathrestart.test.role=guest'
+            vmArg "-Ddeathrestart.test.sync=${layout.buildDirectory.dir('lan-test-sync').get().asFile.absolutePath}"
         }
     }
 }
@@ -56,6 +57,7 @@ dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    compileOnly "com.terraformersmc:modmenu:18.0.2"
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

@@ -1,4 +1,4 @@
-package local.sylvan.deathreset;
+package local.sylvan.deathrestart;
 
 import java.io.IOException;
 import java.nio.file.Files;

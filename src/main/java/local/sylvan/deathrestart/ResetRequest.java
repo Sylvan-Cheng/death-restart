@@ -1,4 +1,4 @@
-package local.sylvan.deathreset;
+package local.sylvan.deathrestart;
 
 import java.nio.file.Path;
 import net.minecraft.server.MinecraftServer;

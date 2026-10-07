@@ -1,4 +1,4 @@
-package local.sylvan.deathreset;
+package local.sylvan.deathrestart;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -9,7 +9,7 @@ import net.minecraft.resources.Identifier;
 public record ResetNoticePayload() implements CustomPacketPayload {
     public static final ResetNoticePayload INSTANCE = new ResetNoticePayload();
     public static final Type<ResetNoticePayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deathreset", "reset_notice"));
+            new Type<>(Identifier.fromNamespaceAndPath("deathrestart", "reset_notice"));
     public static final StreamCodec<RegistryFriendlyByteBuf, ResetNoticePayload> CODEC =
             StreamCodec.unit(INSTANCE);
 

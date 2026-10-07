@@ -1,12 +1,22 @@
-package local.sylvan.deathreset;
+package local.sylvan.deathrestart;
 
 /** A monotonic countdown. Additional deaths cannot extend or duplicate a reset. */
 public final class ResetCountdown {
-    public static final int SECONDS = 10;
+    public static final int DEFAULT_SECONDS = 10;
     private static final long SECOND = 1_000_000_000L;
+    private final int seconds;
     private long startedAt;
     private boolean started;
     private boolean fired;
+
+    public ResetCountdown() {
+        this(DEFAULT_SECONDS);
+    }
+
+    public ResetCountdown(int seconds) {
+        if (seconds <= 0) throw new IllegalArgumentException("Countdown duration must be positive");
+        this.seconds = seconds;
+    }
 
     public boolean start(long now) {
         if (started) return false;
@@ -16,7 +26,7 @@ public final class ResetCountdown {
     }
 
     public int secondsRemaining(long now) {
-        long remaining = SECONDS * SECOND - (now - startedAt);
+        long remaining = seconds * SECOND - (now - startedAt);
         return (int) Math.max(0, (remaining + SECOND - 1) / SECOND);
     }
 
@@ -28,5 +38,9 @@ public final class ResetCountdown {
 
     public boolean isStarted() {
         return started;
+    }
+
+    public int durationSeconds() {
+        return seconds;
     }
 }

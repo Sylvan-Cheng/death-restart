@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "deathreset-integration",
-  "version": "1.0.0",
-  "name": "Death Reset LAN Integration Test",
+  "id": "deathrestart-integration",
+  "version": "1.1",
+  "name": "Death Restart LAN Integration Test",
   "environment": "client",
-  "entrypoints": { "client": ["local.sylvan.deathreset.test.LanIntegration"] },
-  "depends": { "deathreset": "*" }
+  "entrypoints": { "client": ["local.sylvan.deathrestart.test.LanIntegration"] },
+  "depends": { "deathrestart": "*" }
 }

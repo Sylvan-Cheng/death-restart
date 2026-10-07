@@ -1,4 +1,4 @@
-package local.sylvan.deathreset;
+package local.sylvan.deathrestart;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
@@ -39,5 +39,24 @@ class ResetCountdownTest {
     @Test
     void anUnstartedCountdownCannotFire() {
         assertFalse(new ResetCountdown().fireIfReady(Long.MAX_VALUE));
+    }
+
+    @Test
+    void configuredDurationControlsWhenResetFires() {
+        for (int seconds : new int[] {5, 45, 60}) {
+            var timer = new ResetCountdown(seconds);
+            timer.start(0);
+            assertEquals(seconds, timer.durationSeconds());
+            assertEquals(1, timer.secondsRemaining(seconds * 1_000_000_000L - 1));
+            assertFalse(timer.fireIfReady(seconds * 1_000_000_000L - 1));
+            assertTrue(timer.fireIfReady(seconds * 1_000_000_000L));
+            assertFalse(timer.fireIfReady(seconds * 1_000_000_000L));
+        }
+    }
+
+    @Test
+    void rejectsNonPositiveDuration() {
+        assertThrows(IllegalArgumentException.class, () -> new ResetCountdown(0));
+        assertThrows(IllegalArgumentException.class, () -> new ResetCountdown(-10));
     }
 }
