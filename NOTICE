@@ -1,0 +1,16 @@
+Death Restart / Death Reset
+Copyright (c) 2026 Sylvan
+
+This distribution is licensed under the GNU Lesser General Public License,
+version 3 only (SPDX: LGPL-3.0-only). See LICENSE and COPYING.
+
+Earlier distributions were published under the MIT license. The permissions
+already granted for those distributions remain available; their original
+copyright and permission notice is preserved in LICENSE-MIT.
+
+Corresponding source, including the Gradle build scripts and wrapper, is
+available in the release/1.0-lgpl branch for version 1.0 and the main branch
+for version 1.1 at https://github.com/Sylvan-Cheng/death-restart.
+The release source archives accompany the binary downloads.
+
+The Gradle wrapper retains its own Apache-2.0 licensing notices.
