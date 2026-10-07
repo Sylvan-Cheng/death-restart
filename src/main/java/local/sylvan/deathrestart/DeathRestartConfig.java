@@ -14,7 +14,6 @@ import net.fabricmc.loader.api.FabricLoader;
 
 /** Each installation stores its own host rules and guest preferences. */
 public final class DeathRestartConfig {
-    private static final String LEGACY_MOD_ID = "deathreset";
     public static final List<Integer> COUNTDOWN_VALUES = List.of(5, 10, 15, 20, 30, 45, 60);
     public static final List<Integer> RECONNECT_INTERVAL_VALUES = List.of(1, 3, 5, 10, 15);
     public static final List<Integer> RECONNECT_TIMEOUT_VALUES = List.of(30, 60, 120, 300);
@@ -30,10 +29,7 @@ public final class DeathRestartConfig {
     public static void load() {
         Path file = configFile();
         try {
-            Path legacy = legacyConfigFile();
-            boolean migrated = !Files.exists(file) && Files.exists(legacy);
-            settings = load(file, legacy);
-            if (migrated) DeathRestartMod.LOGGER.info("Migrated settings from {} to {}", legacy, file);
+            settings = load(file);
         } catch (IOException failure) {
             settings = DEFAULTS;
             DeathRestartMod.LOGGER.warn("Could not load {}; preserving the file and using defaults", file, failure);
@@ -60,16 +56,7 @@ public final class DeathRestartConfig {
         return FabricLoader.getInstance().getConfigDir().resolve("deathrestart.json");
     }
 
-    private static Path legacyConfigFile() {
-        return FabricLoader.getInstance().getConfigDir().resolve(LEGACY_MOD_ID + ".json");
-    }
-
-    static Settings load(Path file, Path legacy) throws IOException {
-        if (!Files.exists(file) && Files.exists(legacy)) {
-            Settings migrated = read(legacy);
-            write(file, migrated);
-            return migrated;
-        }
+    static Settings load(Path file) throws IOException {
         Settings loaded = read(file);
         if (!Files.exists(file)) write(file, loaded);
         return loaded;

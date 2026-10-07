@@ -36,10 +36,6 @@
 
 中文与英文跟随 Minecraft 语言设置，无需单独选择模组语言。未安装模组的客机收到英文备用提示；其他语言使用英文回退。完整双语文案见 `TEXT.md`，实际资源位于 `src/main/resources/assets/deathrestart/lang/`。
 
-## 从旧版升级
-
-本版内部 ID 已改为 `deathrestart`。升级时请先移除旧的 `death-reset` JAR，避免新旧两个 ID 同时加载。首次启动时，如果检测到旧版的 `config/deathreset.json` 或 `config/deathreset/deaths/`，模组会自动复制设置和死亡榜到新的 `deathrestart` 路径；旧文件会保留作为备份。旧世界备份目录也不会被删除，新一局从此写入 `death-restart-backups/`。
-
 版本变化见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 重置内容
@@ -73,7 +69,7 @@ death-restart-backups/<原存档目录>-<时间>-<随机编号>/
 
 安装用 JAR 位于 `build/libs/`；带 `-sources` 的 JAR 是源码包。
 
-单元测试覆盖倒计时、世界备份与恢复、死亡统计和配置迁移。联机测试运行方法、验证范围与截图见 [docs/TESTING.md](docs/TESTING.md)。
+单元测试覆盖倒计时、世界备份与恢复、死亡统计和配置读写校验。联机测试运行方法、验证范围与截图见 [docs/TESTING.md](docs/TESTING.md)。
 
 ## 项目文件
 

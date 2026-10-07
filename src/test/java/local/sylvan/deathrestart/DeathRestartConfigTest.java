@@ -20,18 +20,6 @@ class DeathRestartConfigTest {
     }
 
     @Test
-    void migratesLegacySettingsToTheNewIdPath() throws IOException {
-        Path legacy = root.resolve("deathreset.json");
-        Path current = root.resolve("deathrestart.json");
-        var settings = new DeathRestartConfig.Settings(20, true, 3, 60, false);
-        DeathRestartConfig.write(legacy, settings);
-
-        assertEquals(settings, DeathRestartConfig.load(current, legacy));
-        assertEquals(settings, DeathRestartConfig.read(current));
-        assertEquals(settings, DeathRestartConfig.read(legacy));
-    }
-
-    @Test
     void missingFieldsKeepDefaultsWithoutChangingValidFields() throws IOException {
         assertEquals(DeathRestartConfig.DEFAULTS, DeathRestartConfig.read(root.resolve("missing.json")));
         Path file = root.resolve("partial.json");

@@ -2,7 +2,7 @@
 
 这里列出当前模组的全部 41 条自有语言文案，可直接修改中文或 English 列。游戏实际读取 `src/main/resources/assets/deathrestart/lang/zh_cn.json` 与 `en_us.json`；修改此 Markdown 后，需要将修改同步到语言资源再构建。
 
-当前公开与内部模组 ID 均为 `deathrestart`；旧版 `deathreset` 的配置和死亡榜路径只用于首次启动时迁移，不属于当前语言键。
+当前公开与内部模组 ID 均为 `deathrestart`；设置与死亡榜分别保存在 `deathrestart.json` 和 `deathrestart/` 路径。
 
 此前确认的中文表达已保留。死亡广播里的固定「10 秒」改为占位符，显示房主设置的倒计时时长。语言跟随每位玩家自己的 Minecraft 设置。
 

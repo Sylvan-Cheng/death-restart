@@ -1,7 +1,6 @@
 package local.sylvan.deathrestart;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -14,7 +13,6 @@ import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 
 /** Vanilla sidebar packets also display the leaderboard for guests without the mod. */
 final class DeathLeaderboard {
-    private static final String LEGACY_MOD_ID = "deathreset";
     static final String OBJECTIVE = "deathrestart_deaths";
     private MinecraftServer server;
     private DeathStatsStore stats;
@@ -56,20 +54,8 @@ final class DeathLeaderboard {
         server = current;
         previousSidebar = null;
         String worldId = current.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize().getFileName().toString();
-        var configDir = FabricLoader.getInstance().getConfigDir();
-        var file = configDir.resolve("deathrestart/deaths").resolve(worldId + ".json");
-        var legacyFile = configDir.resolve(LEGACY_MOD_ID + "/deaths").resolve(worldId + ".json");
-        if (!Files.exists(file) && Files.exists(legacyFile)) {
-            try {
-                Files.createDirectories(file.getParent());
-                Files.copy(legacyFile, file);
-                DeathRestartMod.LOGGER.info("Migrated death leaderboard from {} to {}", legacyFile, file);
-            } catch (IOException failure) {
-                DeathRestartMod.LOGGER.warn(
-                        "Could not migrate death leaderboard; continuing with the legacy file", failure);
-                file = legacyFile;
-            }
-        }
+        var file = FabricLoader.getInstance().getConfigDir()
+                .resolve("deathrestart/deaths").resolve(worldId + ".json");
         try {
             stats = new DeathStatsStore(file);
             writable = true;
