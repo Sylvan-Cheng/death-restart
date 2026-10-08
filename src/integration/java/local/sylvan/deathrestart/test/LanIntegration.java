@@ -44,6 +44,8 @@ public final class LanIntegration implements ClientModInitializer {
     private static final BlockPos MARKER = new BlockPos(10, 200, 10);
     private final boolean host = System.getProperty("deathrestart.test.role", "host").equals("host");
     private final Path sync = Path.of(System.getProperty("deathrestart.test.sync"));
+    private final String statsFixture = System.getProperty("deathrestart.test.stats", "valid");
+    private final int expectedGuestDeaths = statsFixture.equals("valid") ? 6 : 1;
     private int stage;
     private int round;
     private int port;
@@ -129,12 +131,16 @@ public final class LanIntegration implements ClientModInitializer {
             Path statsFile = FabricLoader.getInstance().getConfigDir().resolve("deathrestart/deaths")
                     .resolve(savePath.getFileName() + ".json");
             Files.createDirectories(statsFile.getParent());
-            Files.writeString(statsFile, """
+            if (statsFixture.equals("valid")) Files.writeString(statsFile, """
                     {
                       "restartguest": {"name": "RestartGuest", "deaths": 5},
                       "uuid:%s": {"name": "RestartGuest", "deaths": 5}
                     }
                     """.formatted(offlineUuid("RestartGuest")));
+            if (statsFixture.equals("invalid")) Files.writeString(statsFile, """
+                    {"%s": {"name": "RestartGuest", "deaths": 5}}
+                    """.formatted(offlineUuid("RestartGuest")));
+            if (statsFixture.equals("missing")) check(!Files.exists(statsFile), "Start without a statistics file");
             try (var socket = new ServerSocket(0)) { port = socket.getLocalPort(); }
             check(LanCompatibility.publishLan(previousServer,
                     new LanSettings(GameType.SURVIVAL, false, true, false), port), "Publish LAN");
@@ -275,7 +281,12 @@ public final class LanIntegration implements ClientModInitializer {
                 check(objective != null && objective.getName().equals("deathrestart_deaths"), "Show sidebar death leaderboard");
                 var previousGuest = next.getScoreboard().listPlayerScores(objective).stream()
                         .filter(entry -> entry.display() != null && entry.display().getString().equals("RestartGuest")).findFirst().orElseThrow();
-                check(previousGuest.value() == 6, "Retain guest death count after world reset");
+                check(previousGuest.value() == expectedGuestDeaths, "Retain guest death count after world reset");
+                var hostEntry = next.getScoreboard().listPlayerScores(objective).stream()
+                        .filter(entry -> entry.display() != null && entry.display().getString().equals("RestartHost"))
+                        .findFirst().orElseThrow();
+                check(hostEntry.value() == round, "Retain host death count after world reset");
+                verifyStoredDeathTotals();
                 var scores = next.getScoreboard().listPlayerScores(objective);
                 check(scores.size() == 2, "One leaderboard row per player");
                 var mode = DeathRestartConfig.get().statisticsMode();
@@ -333,6 +344,17 @@ public final class LanIntegration implements ClientModInitializer {
                 });
                 leaderboardCommandTime = System.nanoTime();
             } else {
+                if (statsFixture.equals("invalid")) {
+                    Path statsDir = FabricLoader.getInstance().getConfigDir().resolve("deathrestart/deaths");
+                    try (var files = Files.list(statsDir)) {
+                        var preserved = files.filter(p -> p.getFileName().toString().startsWith(
+                                savePath.getFileName() + ".json.invalid-")).toList();
+                        check(preserved.size() == 1, "Preserve invalid statistics only once across two resets");
+                        check(Files.readString(preserved.getFirst()).equals("""
+                                {"%s": {"name": "RestartGuest", "deaths": 5}}
+                                """.formatted(offlineUuid("RestartGuest"))), "Preserve the exact unsupported history");
+                    }
+                }
                 var backups = WorldArchive.listBackups(client.gameDirectory.toPath().resolve("death-restart-backups"),
                         savePath.getFileName().toString());
                 check(backups.stream().filter(b -> b.kind() == WorldArchive.BackupKind.SUCCESSFUL).count() == 2,
@@ -445,7 +467,7 @@ public final class LanIntegration implements ClientModInitializer {
                     "Clear confirmation is required even with restart confirmation disabled");
             var objective = previousServer.getScoreboard().getObjective("deathrestart_deaths");
             check(previousServer.getScoreboard().listPlayerScores(objective).stream()
-                            .anyMatch(score -> score.value() == 6),
+                            .anyMatch(score -> score.value() == expectedGuestDeaths),
                     "Preparing leaderboard clear does not change death totals");
         } else if (command.equals("deathrestart leaderboard clear confirm")) {
             var scoreboard = previousServer.getScoreboard();
@@ -509,7 +531,8 @@ public final class LanIntegration implements ClientModInitializer {
             var guestEntry = client.level.getScoreboard().listPlayerScores(localSidebar).stream()
                     .filter(entry -> entry.display() != null && entry.display().getString().equals("RestartGuest"))
                     .findFirst().orElseThrow();
-            check(guestEntry.value() == 6, "Deaths continue accumulating while display settings are ignored on guests");
+            check(guestEntry.value() == expectedGuestDeaths,
+                    "Deaths continue accumulating while display settings are ignored on guests");
             round++;
             Files.writeString(sync.resolve(round == 1 ? "guest-round-one.txt" : "guest-passed.txt"), "Automatically rejoined round " + round);
             previousLevel = client.level;
@@ -523,6 +546,23 @@ public final class LanIntegration implements ClientModInitializer {
 
     private static boolean ready(Minecraft client) {
         return client.level != null && client.player != null && ScreenCompatibility.current(client) == null;
+    }
+
+    private void verifyStoredDeathTotals() {
+        try {
+            Path file = FabricLoader.getInstance().getConfigDir().resolve("deathrestart/deaths")
+                    .resolve(savePath.getFileName() + ".json");
+            var mode = DeathRestartConfig.get().statisticsMode();
+            var entries = new DeathStatsStore(file).entries(mode);
+            String guestKey = mode == DeathRestartConfig.StatisticsMode.UUID
+                    ? "uuid:" + offlineUuid("RestartGuest") : "restartguest";
+            String hostKey = mode == DeathRestartConfig.StatisticsMode.UUID
+                    ? "uuid:" + offlineUuid("RestartHost") : "restarthost";
+            check(entries.get(guestKey).deaths() == expectedGuestDeaths, "Persist guest deaths after each reset");
+            check(entries.get(hostKey).deaths() == round, "Persist host deaths after each reset");
+        } catch (Exception failure) {
+            throw new AssertionError("Verify death statistics independently of the scoreboard", failure);
+        }
     }
 
     private static void check(boolean condition, String message) {
