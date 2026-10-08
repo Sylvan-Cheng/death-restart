@@ -213,8 +213,12 @@ public final class WorldArchive {
     }
 
     private static void requireChild(Path path, Path parent) throws IOException {
-        if (!path.toAbsolutePath().normalize().getParent().equals(parent) || Files.isSymbolicLink(path)
-                || (Files.exists(path, LinkOption.NOFOLLOW_LINKS) && !path.toRealPath().getParent().equals(parent))) {
+        Path normalized = path.toAbsolutePath().normalize();
+        Path actualParent = normalized.getParent();
+        Path realParent = parent.toRealPath();
+        if (actualParent == null || !actualParent.toRealPath().equals(realParent) || Files.isSymbolicLink(path)
+                || (Files.exists(path, LinkOption.NOFOLLOW_LINKS)
+                && !path.toRealPath().getParent().equals(realParent))) {
             throw new IOException("Path must be a real direct child of " + parent + ": " + path);
         }
     }

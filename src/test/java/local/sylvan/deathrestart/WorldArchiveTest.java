@@ -277,7 +277,8 @@ class WorldArchiveTest {
         Path other = Files.createDirectory(backups.resolve("world-extra-20261008-100000-12345678"));
         Files.writeString(other.resolve("level.dat"), "other");
         Files.createDirectory(backups.resolve("world-unrelated"));
-        assertEquals(List.of(own), WorldArchive.listBackups(backups, "world").stream().map(WorldArchive.Backup::path).toList());
+        assertEquals(List.of(own.toRealPath()), WorldArchive.listBackups(backups, "world").stream()
+                .map(WorldArchive.Backup::path).toList());
         assertTrue(Files.exists(other));
     }
 
