@@ -14,7 +14,7 @@
   "deathrestart.reset.restoring": "正在恢复旧世界…",
   "deathrestart.reset.failed": "世界重置失败",
   "deathrestart.reset.old_world_kept": "旧世界仍保留在原存档目录。",
-  "deathrestart.reset.old_world_restored": "旧世界已恢复，重新进入原存档即可继续。",
+  "deathrestart.reset.old_world_restored": "旧世界已恢复，重新进入原存档即可继续游玩。",
   "deathrestart.reset.backup_path": "旧世界备份路径：%s",
   "deathrestart.reset.ready": "新世界已就绪！种子：%s · 端口：%s",
   "deathrestart.reset.port_wait": "新世界已生成，正在等待原端口 %s 释放，稍后自动重试…",
@@ -77,5 +77,9 @@
   "deathrestart.command.leaderboard.clear_expired": "没有有效的死亡榜清除请求，请重新执行 /deathrestart leaderboard clear。",
   "deathrestart.command.leaderboard.cleared": "当前存档的用户名与 UUID 死亡统计已清除，在线玩家从 0 重新累计。",
   "deathrestart.command.leaderboard.clear_failed": "死亡榜清除失败，统计未清除。请检查统计文件与游戏目录写入权限，详情见游戏日志。",
-  "deathrestart.command.countdown_updated": "默认重置倒计时已设为 %s 秒，将于下次玩家死亡时生效。"
+  "deathrestart.command.countdown_updated": "默认重置倒计时已设为 %s 秒，将于下次玩家死亡时生效。",
+  "deathrestart.recovery.title": "中断重置恢复",
+  "deathrestart.recovery.restored": "已恢复 %s 个异常中断的世界。重新进入原存档即可继续游玩；未完成的新世界文件已保留在 failed-* 目录中。",
+  "deathrestart.recovery.failures": "有 %s 个中断的重置未能恢复，相关文件已保留。请检查游戏日志与备份目录：%s",
+  "deathrestart.recovery.commit_failed": "未能保存重置完成记录，备份已保留，模组将自动重试。请检查游戏日志。"
 }

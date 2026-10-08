@@ -111,9 +111,9 @@ public final class DeathRestartConfigScreen extends Screen {
                 reconnectInterval, reconnectTimeout, deathLeaderboard, settings.statisticsMode(),
                 settings.countdownStartSound(), settings.countdownFinalSecondsSound(),
                 settings.backupRetentionCount(), settings.manualRestartConfirmation()))) {
-            minecraft.setScreen(parent);
+            ScreenCompatibility.set(minecraft, parent);
         } else {
-            minecraft.setScreen(new AlertScreen(() -> minecraft.setScreen(this),
+            ScreenCompatibility.set(minecraft, new AlertScreen(() -> ScreenCompatibility.set(minecraft, this),
                     Component.translatable("deathrestart.config.save_failed"),
                     Component.translatable("deathrestart.config.save_failed_details")));
         }

@@ -107,8 +107,7 @@ public final class DeathRestartMod implements ModInitializer {
         ResetRequest request = new ResetRequest(server, server.getWorldPath(LevelResource.ROOT),
                 server.getWorldData().getLevelSettings().copy(),
                 server.getGameRules().copy(server.getWorldData().enabledFeatures()),
-                server.getWorldGenSettings().options().seed(), server.getPort(),
-                server.getForcedGameType(), server.getPlayerList().isAllowCommandsForAllPlayers());
+                server.getWorldGenSettings().options().seed(), server.getPort());
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             if (!server.isSingleplayerOwner(player.nameAndId())
                     && ServerPlayNetworking.canSend(player, ResetNoticePayload.TYPE)) {
