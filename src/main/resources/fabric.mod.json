@@ -18,11 +18,11 @@
   },
   "depends": {
     "fabricloader": ">=0.19.5",
-    "minecraft": "26.1.2",
+    "minecraft": "${minecraft_version}",
     "java": ">=25",
-    "fabric-api": ">=0.155.3"
+    "fabric-api": ">=${fabric_api_version}"
   },
   "suggests": {
-    "modmenu": ">=18.0.2"
+    "modmenu": ">=${modmenu_version}"
   }
 }

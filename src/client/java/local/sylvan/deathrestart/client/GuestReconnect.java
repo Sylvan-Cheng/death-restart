@@ -60,7 +60,8 @@ final class GuestReconnect {
     }
 
     private void abortConnectingScreen(Minecraft client) {
-        if (client.screen instanceof ConnectScreen screen && screen instanceof ConnectScreenAccess access) {
+        if (ScreenCompatibility.current(client) instanceof ConnectScreen screen
+                && screen instanceof ConnectScreenAccess access) {
             access.deathrestart$abortConnection();
         }
     }
@@ -81,20 +82,20 @@ final class GuestReconnect {
             abortConnectingScreen(client);
             ReconnectScreen timeout = new ReconnectScreen(this, address, attempts);
             timeout.timedOut();
-            client.setScreen(timeout);
+            ScreenCompatibility.set(client, timeout);
             cancel();
             return;
         }
-        if (showedWaitingScreen && client.screen instanceof TitleScreen) {
+        if (showedWaitingScreen && ScreenCompatibility.current(client) instanceof TitleScreen) {
             // Vanilla's connection Cancel button returns to the title and stops the retry loop.
             cancel();
             return;
         }
-        if (client.screen instanceof DisconnectedScreen) {
-            client.setScreen(new ReconnectScreen(this, target.ip, attempts));
+        if (ScreenCompatibility.current(client) instanceof DisconnectedScreen) {
+            ScreenCompatibility.set(client, new ReconnectScreen(this, target.ip, attempts));
             showedWaitingScreen = true;
         }
-        if (client.screen instanceof ReconnectScreen && now >= nextAttempt) {
+        if (ScreenCompatibility.current(client) instanceof ReconnectScreen && now >= nextAttempt) {
             nextAttempt = now + intervalNanos;
             attempts++;
             ConnectScreen.startConnecting(new TitleScreen(), client,

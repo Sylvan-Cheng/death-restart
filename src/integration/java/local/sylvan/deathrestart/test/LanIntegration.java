@@ -5,10 +5,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import local.sylvan.deathrestart.DeathRestartMod;
+import local.sylvan.deathrestart.client.LanCompatibility;
+import local.sylvan.deathrestart.client.LanSettings;
+import local.sylvan.deathrestart.client.ScreenCompatibility;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -65,7 +67,7 @@ public final class LanIntegration implements ClientModInitializer {
     }
 
     private void tickHost(Minecraft client) throws Exception {
-        if (stage == 0 && client.isGameLoadFinished() && client.screen != null) {
+        if (stage == 0 && client.isGameLoadFinished() && ScreenCompatibility.current(client) != null) {
             client.options.onboardAccessibility = false;
             client.options.pauseOnLostFocus = false;
             client.options.renderDistance().set(6);
@@ -80,7 +82,8 @@ public final class LanIntegration implements ClientModInitializer {
             seed = 123456789L;
             savePath = previousServer.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize();
             try (var socket = new ServerSocket(0)) { port = socket.getLocalPort(); }
-            check(previousServer.publishServer(GameType.SURVIVAL, true, port), "Publish LAN");
+            check(LanCompatibility.publishLan(previousServer,
+                    new LanSettings(GameType.SURVIVAL, true, true, false), port), "Publish LAN");
             Files.createDirectories(sync);
             Files.writeString(sync.resolve("port.txt"), Integer.toString(port));
             stage = 2;
@@ -101,7 +104,7 @@ public final class LanIntegration implements ClientModInitializer {
                     server.getPlayerList().getPlayers().forEach(p -> p.giveExperienceLevels(23));
                     server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "give @a minecraft:diamond 7");
                     server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "advancement grant @a only minecraft:story/root");
-                    String victim = round == 0 ? "DeathRestartGuest" : "DeathRestartHost";
+                    String victim = round == 0 ? "RestartGuest" : "RestartHost";
                     server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "kill " + victim);
                 });
                 stage = 3;
@@ -114,7 +117,7 @@ public final class LanIntegration implements ClientModInitializer {
             stage = 4;
         } else if (stage == 4) {
             if (!screenshotTaken && System.nanoTime() - deathTime > 1_000_000_000L && client.level != null) {
-                Screenshot.grab(client.gameDirectory, "countdown-" + round + ".png", client.getMainRenderTarget(), 1, component -> {});
+                ScreenshotCompatibility.grab(client, "countdown-" + round + ".png");
                 screenshotTaken = true;
             }
             if (!ready(client) || client.getSingleplayerServer() == previousServer || !client.getSingleplayerServer().isPublished()) return;
@@ -132,7 +135,7 @@ public final class LanIntegration implements ClientModInitializer {
                 var objective = next.getScoreboard().getDisplayObjective(DisplaySlot.SIDEBAR);
                 check(objective != null && objective.getName().equals("deathrestart_deaths"), "Show sidebar death leaderboard");
                 var previousGuest = next.getScoreboard().listPlayerScores(objective).stream()
-                        .filter(entry -> entry.display() != null && entry.display().getString().equals("DeathRestartGuest")).findFirst().orElseThrow();
+                        .filter(entry -> entry.display() != null && entry.display().getString().equals("RestartGuest")).findFirst().orElseThrow();
                 check(previousGuest.value() == 1, "Retain guest's death count after world reset");
                 return newSeed;
             });
@@ -162,7 +165,7 @@ public final class LanIntegration implements ClientModInitializer {
                 if (round == 1) {
                     stage = 2;
                 } else {
-                    Screenshot.grab(client.gameDirectory, "new-round.png", client.getMainRenderTarget(), 1, component -> {});
+                    ScreenshotCompatibility.grab(client, "new-round.png");
                     Files.writeString(sync.resolve("host-passed.txt"), "PASS: guest death, host death, two 10-second countdowns, two new seeds, same LAN port, inventory/XP/blocks cleared, rules preserved, guest reconnected twice");
                     Files.writeString(sync.resolve("finish.txt"), "done");
                     deathTime = System.nanoTime();
@@ -176,7 +179,7 @@ public final class LanIntegration implements ClientModInitializer {
     }
 
     private void tickGuest(Minecraft client) throws Exception {
-        if (stage == 0 && client.isGameLoadFinished() && client.screen != null && Files.exists(sync.resolve("port.txt"))) {
+        if (stage == 0 && client.isGameLoadFinished() && ScreenCompatibility.current(client) != null && Files.exists(sync.resolve("port.txt"))) {
             client.options.onboardAccessibility = false;
             client.options.pauseOnLostFocus = false;
             client.options.renderDistance().set(6);
@@ -204,7 +207,7 @@ public final class LanIntegration implements ClientModInitializer {
     }
 
     private static boolean ready(Minecraft client) {
-        return client.level != null && client.player != null && client.screen == null;
+        return client.level != null && client.player != null && ScreenCompatibility.current(client) == null;
     }
 
     private static void check(boolean condition, String message) {

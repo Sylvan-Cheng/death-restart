@@ -2,9 +2,23 @@ plugins {
     id 'net.fabricmc.fabric-loom' version "${loom_version}"
 }
 
-version = project.mod_version
+def minecraftVersion = project.minecraft_version
+def supportedVersions = new groovy.json.JsonSlurper().parse(file('gradle/minecraft-versions.json'))
+def minecraftConfig = supportedVersions[minecraftVersion]
+if (minecraftConfig == null) {
+    throw new GradleException("Unsupported Minecraft version '${minecraftVersion}'. See gradle/minecraft-versions.json.")
+}
+def lanTestId = providers.gradleProperty('lan_test_id').orElse('').get()
+if (!lanTestId.isEmpty() && !(lanTestId ==~ /[A-Za-z0-9_-]+/)) {
+    throw new GradleException('lan_test_id may contain only letters, numbers, underscores, and hyphens.')
+}
+def lanTestSuffix = lanTestId.isEmpty() ? '' : "-${lanTestId}"
+def lanTestSyncDir = "lan-test-sync${lanTestSuffix}"
+
+version = "${project.mod_version}+${minecraftVersion}"
 group = project.maven_group
 base { archivesName = project.archives_base_name }
+layout.buildDirectory = layout.projectDirectory.dir("build/versions/${minecraftVersion}")
 
 repositories {
     maven { url = 'https://mirrors.huaweicloud.com/repository/maven' }
@@ -24,8 +38,9 @@ loom {
 
 // Use ordinary clients: the GameTest phased scheduler interferes with full server shutdown.
 sourceSets {
-    client.java.srcDir 'src/compat/26.1/client'
+    client.java.srcDir "src/compat/${minecraftConfig.compatibility}/client"
     integration {
+        java.srcDir "src/compat/${minecraftConfig.compatibility}/integration"
         compileClasspath += sourceSets.main.output + sourceSets.client.output + sourceSets.client.compileClasspath
         runtimeClasspath += sourceSets.main.output + sourceSets.client.output + sourceSets.client.runtimeClasspath
     }
@@ -38,35 +53,62 @@ loom {
         lanTestHost {
             client()
             source sourceSets.integration
-            runDir 'build/lan-test-host'
-            programArgs '--username', 'DeathRestartHost'
+            runDir "build/versions/${minecraftVersion}/lan-test-host${lanTestSuffix}"
+            programArgs '--username', 'RestartHost'
             vmArg '-Ddeathrestart.test.role=host'
-            vmArg "-Ddeathrestart.test.sync=${layout.buildDirectory.dir('lan-test-sync').get().asFile.absolutePath}"
+            vmArg "-Ddeathrestart.test.sync=${layout.buildDirectory.dir(lanTestSyncDir).get().asFile.absolutePath}"
         }
         lanTestGuest {
             client()
             source sourceSets.integration
-            runDir 'build/lan-test-guest'
-            programArgs '--username', 'DeathRestartGuest'
+            runDir "build/versions/${minecraftVersion}/lan-test-guest${lanTestSuffix}"
+            programArgs '--username', 'RestartGuest'
             vmArg '-Ddeathrestart.test.role=guest'
-            vmArg "-Ddeathrestart.test.sync=${layout.buildDirectory.dir('lan-test-sync').get().asFile.absolutePath}"
+            vmArg "-Ddeathrestart.test.sync=${layout.buildDirectory.dir(lanTestSyncDir).get().asFile.absolutePath}"
+        }
+    }
+}
+['runLanTestHost': 'host', 'runLanTestGuest': 'guest'].each { taskName, role ->
+    tasks.named(taskName).configure {
+        doLast {
+            def syncDir = layout.buildDirectory.dir(lanTestSyncDir).get().asFile.toPath()
+            def failureMarker = syncDir.resolve("${role}-failed.txt")
+            def passedMarker = syncDir.resolve("${role}-passed.txt")
+            if (java.nio.file.Files.exists(failureMarker)) {
+                throw new GradleException("LAN integration ${role} failed: ${java.nio.file.Files.readString(failureMarker)}")
+            }
+            if (!java.nio.file.Files.exists(passedMarker)) {
+                throw new GradleException("LAN integration ${role} exited without a pass marker.")
+            }
         }
     }
 }
 
 dependencies {
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    minecraft "com.mojang:minecraft:${minecraftVersion}"
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-    compileOnly "com.terraformersmc:modmenu:18.0.2"
+    implementation "net.fabricmc.fabric-api:fabric-api:${minecraftConfig.fabricApi}"
+    compileOnly "com.terraformersmc:modmenu:${minecraftConfig.modMenu}"
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 test { useJUnitPlatform() }
 processResources {
-    inputs.property 'version', project.version
-    filesMatching('fabric.mod.json') { expand 'version': project.version }
+    inputs.properties([
+            version: project.version.toString(),
+            minecraft_version: minecraftVersion,
+            fabric_api_version: minecraftConfig.fabricApi,
+            modmenu_version: minecraftConfig.modMenu
+    ])
+    filesMatching('fabric.mod.json') {
+        expand(
+                version: project.version.toString(),
+                minecraft_version: minecraftVersion,
+                fabric_api_version: minecraftConfig.fabricApi,
+                modmenu_version: minecraftConfig.modMenu
+        )
+    }
 }
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'

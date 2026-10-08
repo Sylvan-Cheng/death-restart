@@ -34,7 +34,7 @@ final class ReconnectScreen extends Screen {
     @Override
     public void onClose() {
         reconnect.cancel();
-        minecraft.setScreen(new TitleScreen());
+        ScreenCompatibility.set(minecraft, new TitleScreen());
     }
 
     @Override
