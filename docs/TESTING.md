@@ -27,6 +27,22 @@
 
 PowerShell 中请为 `-Pminecraft_version=...` 加引号，避免带点版本号被拆成多个参数。
 
+死亡统计回归可为两个客户端同时添加 `-Plan_test_stats=missing`（无统计文件）或 `-Plan_test_stats=invalid`（不支持的旧格式）；默认 `valid` 预置当前格式的记录。每次使用相同的新 `-Plan_test_id=<编号>` 隔离两端实例。并行启动前先完成目标版本的 `compileJava compileClientJava compileIntegrationJava processResources processIntegrationResources`；随后两端启动时添加 `-x compileJava -x compileClientJava -x compileIntegrationJava -x processResources -x processIntegrationResources`，避免并发编译改写相同输出。客户端运行期间不再构建其他版本。
+
+## 死亡榜归零回归 · 未发布修复
+
+2026-10-08 在 26.1.2 的独立原版 LAN 实例中比较三种情况，使用 Oracle GraalVM 25+37 和 `-XX:-UseJVMCICompiler`：
+
+| 场景 | 结果 |
+| --- | --- |
+| 修复前，无统计文件的新实例 | 客机、房主各死亡一次，两轮重开后各为 1；两端任务通过，端口保持 5302。 |
+| 修复前，预置不支持的原始 UUID 记录 | 读取失败后只能使用临时统计，第一次重开后丢失客机记录；房主回归断言失败。 |
+| 修复后，同样的不支持格式 | 原文件完整保留为 `.bak`，新统计两轮重开后各为 1；房主和客机榜单、每轮磁盘统计都通过，端口保持 14816，两端任务正常结束。 |
+
+修复后的测试还确认异常原文件只备份一次，确认清榜仍能正常保存。五个维护版本均完成构建、47 项单元测试及联机测试源码编译；新增的 4 项单元测试覆盖不支持格式、损坏内容、正常读取和文件系统读取失败。此次运行未重新实测 PNP、其他游戏版本或大型整合包。
+
+房主随后提供的 2026-10-08 日志确认了相同的故障分支：22:37:21 首次开放局域网，以及 22:48:14、23:20:27、23:31:05、23:33:23 四次重开后，均出现 `Cannot read death leaderboard`，原因为 `Death stats keys must match lowercase player names`。这说明本次归零由统计内容校验失败后使用临时次数引起；异常文件最初如何产生，仍需原统计文件才能判断。
+
 ## Java 25 版本构建验证
 
 | Minecraft | 构建 | JUnit | 联机测试源码编译 | 正式 JAR 检查 |
