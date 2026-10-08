@@ -36,8 +36,19 @@ public final class ResetCountdown {
         return true;
     }
 
+    public boolean cancel() {
+        if (!started || fired) return false;
+        started = false;
+        startedAt = 0;
+        return true;
+    }
+
     public boolean isStarted() {
         return started;
+    }
+
+    public boolean isFired() {
+        return fired;
     }
 
     public int durationSeconds() {
