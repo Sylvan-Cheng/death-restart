@@ -1,5 +1,6 @@
 package local.sylvan.deathrestart;
 
+import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -9,13 +10,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /** Stored outside saves so a new seed keeps the campaign's death totals. */
 public final class DeathStatsStore {
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final String UUID_PREFIX = "uuid:";
     private final Path file;
-    private final Map<UUID, Entry> entries = new LinkedHashMap<>();
+    private final Map<String, Entry> entries = new LinkedHashMap<>();
 
     public DeathStatsStore(Path file) throws IOException {
         this.file = file;
@@ -23,50 +28,108 @@ public final class DeathStatsStore {
         try {
             JsonObject json = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
             for (var player : json.entrySet()) {
-                UUID id = UUID.fromString(player.getKey());
                 JsonObject value = player.getValue().getAsJsonObject();
                 String name = value.get("name").getAsString();
                 int deaths = value.get("deaths").getAsBigDecimal().intValueExact();
-                if (name.isBlank() || name.length() > 64 || deaths < 0) throw new IllegalArgumentException("Invalid death stats");
-                entries.put(id, new Entry(name, deaths));
+                if (name.isBlank() || name.length() > 64 || deaths < 0) {
+                    throw new IllegalArgumentException("Invalid death stats");
+                }
+                String key = player.getKey();
+                if (key.startsWith(UUID_PREFIX)) {
+                    UUID id = UUID.fromString(key.substring(UUID_PREFIX.length()));
+                    if (!key.equals(uuidKey(id))) throw new IllegalArgumentException("Invalid UUID death stats key");
+                } else if (!key.equals(name.toLowerCase(Locale.ROOT))) {
+                    throw new IllegalArgumentException("Death stats keys must match lowercase player names");
+                }
+                entries.put(key, new Entry(name, deaths));
             }
         } catch (RuntimeException failure) {
             throw new IOException("Invalid death leaderboard file: " + file, failure);
         }
     }
 
-    public boolean track(UUID id, String name) {
-        Entry previous = entries.get(id);
+    public boolean track(String name) {
+        return track(null, name, DeathRestartConfig.StatisticsMode.USERNAME);
+    }
+
+    public boolean track(UUID id, String name, DeathRestartConfig.StatisticsMode mode) {
+        String key = identityKey(id, name, mode);
+        Entry previous = entries.get(key);
         if (previous != null && previous.name().equals(name)) return false;
-        entries.put(id, new Entry(name, previous == null ? 0 : previous.deaths()));
+        entries.put(key, new Entry(name, previous == null ? 0 : previous.deaths()));
         return true;
     }
 
-    public void recordDeath(UUID id, String name) {
-        track(id, name);
-        Entry previous = entries.get(id);
-        entries.put(id, new Entry(name, previous.deaths() == Integer.MAX_VALUE ? Integer.MAX_VALUE : previous.deaths() + 1));
+    public void recordDeath(String name) {
+        recordDeath(null, name, DeathRestartConfig.StatisticsMode.USERNAME);
     }
 
-    public Map<UUID, Entry> entries() {
-        return Map.copyOf(entries);
+    public void recordDeath(UUID id, String name, DeathRestartConfig.StatisticsMode mode) {
+        track(id, name, mode);
+        String key = identityKey(id, name, mode);
+        Entry previous = entries.get(key);
+        int deaths = previous.deaths() == Integer.MAX_VALUE ? Integer.MAX_VALUE : previous.deaths() + 1;
+        entries.put(key, new Entry(name, deaths));
+    }
+
+    public Map<String, Entry> entries() {
+        return entries(DeathRestartConfig.StatisticsMode.USERNAME);
+    }
+
+    public Map<String, Entry> entries(DeathRestartConfig.StatisticsMode mode) {
+        boolean uuidMode = mode == DeathRestartConfig.StatisticsMode.UUID;
+        var selected = new LinkedHashMap<String, Entry>();
+        entries.forEach((key, entry) -> {
+            if (key.startsWith(UUID_PREFIX) == uuidMode) selected.put(key, entry);
+        });
+        return Map.copyOf(selected);
+    }
+
+    private static String identityKey(UUID id, String name, DeathRestartConfig.StatisticsMode mode) {
+        return mode == DeathRestartConfig.StatisticsMode.UUID ? uuidKey(id) : name.toLowerCase(Locale.ROOT);
+    }
+
+    private static String uuidKey(UUID id) {
+        return UUID_PREFIX + Objects.requireNonNull(id, "UUID mode requires a player UUID");
+    }
+
+    public void clear() throws IOException {
+        clearAndTrack(Map.of(), DeathRestartConfig.StatisticsMode.USERNAME);
+    }
+
+    /** A failed save leaves both the displayed totals and the stored history intact. */
+    public void clearAndTrack(Map<UUID, String> onlinePlayers, DeathRestartConfig.StatisticsMode mode) throws IOException {
+        var previous = new LinkedHashMap<>(entries);
+        entries.clear();
+        try {
+            onlinePlayers.forEach((id, name) -> track(id, name, mode));
+            save();
+        } catch (IOException failure) {
+            entries.clear();
+            entries.putAll(previous);
+            throw failure;
+        }
     }
 
     public void save() throws IOException {
         JsonObject json = new JsonObject();
-        entries.forEach((id, entry) -> {
+        entries.forEach((key, entry) -> {
             JsonObject value = new JsonObject();
             value.addProperty("name", entry.name());
             value.addProperty("deaths", entry.deaths());
-            json.add(id.toString(), value);
+            json.add(key, value);
         });
         Files.createDirectories(file.getParent());
         Path temporary = Files.createTempFile(file.getParent(), ".death-stats-", ".json");
-        Files.writeString(temporary, new GsonBuilder().setPrettyPrinting().create().toJson(json));
         try {
-            Files.move(temporary, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-        } catch (AtomicMoveNotSupportedException failure) {
-            Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING);
+            Files.writeString(temporary, GSON.toJson(json));
+            try {
+                Files.move(temporary, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException failure) {
+                Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            Files.deleteIfExists(temporary);
         }
     }
 

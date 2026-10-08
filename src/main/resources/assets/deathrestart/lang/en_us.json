@@ -39,5 +39,9 @@
   "deathrestart.config.save_failed": "Could Not Save Settings",
   "deathrestart.config.save_failed_details": "Could not write config/deathrestart.json. Your changes have not been applied. Check that the game folder is writable, then try again.",
   "modmenu.nameTranslation.deathrestart": "Death Restart",
-  "modmenu.descriptionTranslation.deathrestart": "In LAN multiplayer, a player death starts a countdown, then rebuilds the world with a new seed on the same port. Includes a cumulative death leaderboard, auto-reconnect, and a configurable countdown."
+  "modmenu.descriptionTranslation.deathrestart": "In LAN multiplayer, a player death starts a countdown, then rebuilds the world with a new seed on the same port. Includes a cumulative death leaderboard, auto-reconnect, and a configurable countdown.",
+  "deathrestart.config.statistics_mode": "Track Deaths By",
+  "deathrestart.config.statistics_mode.username": "Player Name (Default)",
+  "deathrestart.config.statistics_mode.uuid": "UUID",
+  "deathrestart.config.statistics_mode.tooltip": "Host setting: Player Name mode is case-insensitive and merges identical names. UUID mode tracks by account across name changes. Stored separately; switching will not merge data."
 }

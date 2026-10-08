@@ -106,8 +106,11 @@ public final class DeathRestartConfigScreen extends Screen {
     }
 
     private void saveAndClose() {
+        var settings = DeathRestartConfig.get();
         if (DeathRestartConfig.apply(new DeathRestartConfig.Settings(resetCountdown, automaticReconnect,
-                reconnectInterval, reconnectTimeout, deathLeaderboard))) {
+                reconnectInterval, reconnectTimeout, deathLeaderboard, settings.statisticsMode(),
+                settings.countdownStartSound(), settings.countdownFinalSecondsSound(),
+                settings.backupRetentionCount(), settings.manualRestartConfirmation()))) {
             minecraft.setScreen(parent);
         } else {
             minecraft.setScreen(new AlertScreen(() -> minecraft.setScreen(this),

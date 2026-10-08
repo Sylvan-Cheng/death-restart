@@ -39,5 +39,9 @@
   "deathrestart.config.save_failed": "设置保存失败",
   "deathrestart.config.save_failed_details": "无法写入 config/deathrestart.json。当前设置尚未应用，请检查游戏目录是否可写后重试。",
   "modmenu.nameTranslation.deathrestart": "死亡重启",
-  "modmenu.descriptionTranslation.deathrestart": "局域网联机中，一人死亡即开始倒计时，随后换新种子重建世界，并复用原端口。支持累计死亡榜、自动重连与可配置倒计时。"
+  "modmenu.descriptionTranslation.deathrestart": "局域网联机中，一人死亡即开始倒计时，随后换新种子重建世界，并复用原端口。支持累计死亡榜、自动重连与可配置倒计时。",
+  "deathrestart.config.statistics_mode": "死亡统计身份",
+  "deathrestart.config.statistics_mode.username": "玩家名（默认）",
+  "deathrestart.config.statistics_mode.uuid": "UUID",
+  "deathrestart.config.statistics_mode.tooltip": "房主设置：玩家名模式忽略大小写且同名共享次数；UUID 模式按账号独立统计且改名后保留数据。两种模式分别独立保存，切换不会合并数据。"
 }

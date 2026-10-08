@@ -1,6 +1,9 @@
 package local.sylvan.deathrestart;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -17,17 +20,14 @@ final class DeathLeaderboard {
     private MinecraftServer server;
     private DeathStatsStore stats;
     private boolean writable;
-    private String previousSidebar;
 
     void tick(MinecraftServer current) {
         if (current.isDedicatedServer() || !current.isPublished()) return;
         boolean changed = initialize(current);
-        if (!DeathRestartConfig.get().deathLeaderboard()) {
-            hideIfOwned(current);
-        }
         if (current.getTickCount() % 20 != 0 && !changed) return;
+        var mode = DeathRestartConfig.get().statisticsMode();
         for (ServerPlayer player : current.getPlayerList().getPlayers()) {
-            changed |= stats.track(player.getUUID(), player.getPlainTextName());
+            changed |= stats.track(player.getUUID(), player.getPlainTextName(), mode);
         }
         if (changed) save();
         refresh();
@@ -36,7 +36,7 @@ final class DeathLeaderboard {
     void recordDeath(ServerPlayer player) {
         MinecraftServer current = player.level().getServer();
         initialize(current);
-        stats.recordDeath(player.getUUID(), player.getPlainTextName());
+        stats.recordDeath(player.getUUID(), player.getPlainTextName(), DeathRestartConfig.get().statisticsMode());
         save();
         refresh();
     }
@@ -45,14 +45,12 @@ final class DeathLeaderboard {
         if (server == current) {
             server = null;
             stats = null;
-            previousSidebar = null;
         }
     }
 
     private boolean initialize(MinecraftServer current) {
         if (server == current) return false;
         server = current;
-        previousSidebar = null;
         String worldId = current.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize().getFileName().toString();
         var file = FabricLoader.getInstance().getConfigDir()
                 .resolve("deathrestart/deaths").resolve(worldId + ".json");
@@ -83,11 +81,8 @@ final class DeathLeaderboard {
         }
     }
 
-    private void refresh() {
-        if (!DeathRestartConfig.get().deathLeaderboard()) {
-            hideIfOwned(server);
-            return;
-        }
+    void refresh() {
+        if (server == null || stats == null) return;
         var scoreboard = server.getScoreboard();
         var objective = scoreboard.getObjective(OBJECTIVE);
         if (objective == null) {
@@ -96,26 +91,49 @@ final class DeathLeaderboard {
                             .withStyle(ChatFormatting.GOLD),
                     ObjectiveCriteria.RenderType.INTEGER, false, null);
         }
-        for (var entry : stats.entries().entrySet()) {
+        var settings = DeathRestartConfig.get();
+        var mode = settings.statisticsMode();
+        var entries = stats.entries(mode);
+        var owners = entries.keySet().stream()
+                .map(key -> scoreOwner(key, mode))
+                .collect(Collectors.toSet());
+        for (var score : scoreboard.listPlayerScores(objective)) {
+            if (!owners.contains(score.owner())) {
+                scoreboard.resetSinglePlayerScore(ScoreHolder.forNameOnly(score.owner()), objective);
+            }
+        }
+        for (var entry : entries.entrySet()) {
             var score = scoreboard.getOrCreatePlayerScore(
-                    ScoreHolder.forNameOnly(entry.getKey().toString()), objective);
+                    ScoreHolder.forNameOnly(scoreOwner(entry.getKey(), mode)), objective);
             score.set(entry.getValue().deaths());
             score.display(Component.literal(entry.getValue().name()));
         }
         var displayed = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
-        if (displayed != objective) {
-            previousSidebar = displayed == null ? null : displayed.getName();
-            scoreboard.setDisplayObjective(DisplaySlot.SIDEBAR, objective);
+        if (settings.deathLeaderboard()) {
+            if (displayed != objective) scoreboard.setDisplayObjective(DisplaySlot.SIDEBAR, objective);
+        } else if (displayed == objective) {
+            scoreboard.setDisplayObjective(DisplaySlot.SIDEBAR, null);
         }
     }
 
-    private void hideIfOwned(MinecraftServer current) {
-        var scoreboard = current.getScoreboard();
-        var objective = scoreboard.getObjective(OBJECTIVE);
-        if (objective != null && scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR) == objective) {
-            scoreboard.setDisplayObjective(DisplaySlot.SIDEBAR,
-                    previousSidebar == null ? null : scoreboard.getObjective(previousSidebar));
+    void refresh(MinecraftServer current) {
+        initialize(current);
+        refresh();
+    }
+
+    void clear(MinecraftServer current) throws IOException {
+        initialize(current);
+        if (!writable) throw new IOException("Cannot clear an unreadable death statistics file");
+        var mode = DeathRestartConfig.get().statisticsMode();
+        var onlinePlayers = new LinkedHashMap<UUID, String>();
+        for (ServerPlayer player : current.getPlayerList().getPlayers()) {
+            onlinePlayers.put(player.getUUID(), player.getPlainTextName());
         }
-        previousSidebar = null;
+        stats.clearAndTrack(onlinePlayers, mode);
+        refresh();
+    }
+
+    private static String scoreOwner(String key, DeathRestartConfig.StatisticsMode mode) {
+        return mode == DeathRestartConfig.StatisticsMode.UUID ? key.substring("uuid:".length()) : key;
     }
 }

@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class DeathRestartConfigTest {
@@ -13,7 +14,8 @@ class DeathRestartConfigTest {
     @Test
     void settingsSurviveSaveAndReload() throws IOException {
         Path file = root.resolve("deathrestart.json");
-        var settings = new DeathRestartConfig.Settings(45, false, 15, 300, false);
+        var settings = new DeathRestartConfig.Settings(45, false, 15, 300, false,
+                DeathRestartConfig.StatisticsMode.UUID, false, true, 0, false);
         DeathRestartConfig.write(file, settings);
         assertEquals(settings, DeathRestartConfig.read(file));
         assertEquals(1, fileCount());
@@ -24,7 +26,9 @@ class DeathRestartConfigTest {
         assertEquals(DeathRestartConfig.DEFAULTS, DeathRestartConfig.read(root.resolve("missing.json")));
         Path file = root.resolve("partial.json");
         Files.writeString(file, "{\"resetCountdownSeconds\":20,\"automaticReconnect\":false}");
-        assertEquals(new DeathRestartConfig.Settings(20, false, 5, 120, true), DeathRestartConfig.read(file));
+        assertEquals(new DeathRestartConfig.Settings(20, false, 5, 120, true,
+                DeathRestartConfig.StatisticsMode.USERNAME, true, true), DeathRestartConfig.read(file));
+        assertTrue(DeathRestartConfig.read(file).manualRestartConfirmation());
     }
 
     @Test
@@ -33,11 +37,30 @@ class DeathRestartConfigTest {
         Files.writeString(file, """
                 {"resetCountdownSeconds":5.9,"automaticReconnect":"false",
                  "reconnectIntervalSeconds":4294967297,"reconnectTimeoutSeconds":{},
-                 "deathLeaderboard":false}
+                 "deathLeaderboard":false,"statisticsMode":"OLD_MODE",
+                 "countdownStartSound":"yes","countdownFinalSecondsSound":false,
+                 "manualRestartConfirmation":"false"}
                 """);
-        assertEquals(new DeathRestartConfig.Settings(10, true, 5, 120, false), DeathRestartConfig.read(file));
+        assertEquals(new DeathRestartConfig.Settings(10, true, 5, 120, false,
+                DeathRestartConfig.StatisticsMode.USERNAME, true, false), DeathRestartConfig.read(file));
         Files.writeString(file, "{\"resetCountdownSeconds\":0,\"reconnectIntervalSeconds\":-1,\"reconnectTimeoutSeconds\":999}");
         assertEquals(DeathRestartConfig.DEFAULTS, DeathRestartConfig.read(file));
+    }
+
+    @Test
+    void commandCountdownOptionsMatchTheConfigurationChoices() {
+        assertEquals(java.util.List.of(5, 10, 15, 20, 30, 45, 60), DeathRestartConfig.COUNTDOWN_VALUES);
+        assertEquals(java.util.List.of(0, 1, 3, 5, 10, 20), DeathRestartConfig.BACKUP_RETENTION_VALUES);
+        assertTrue(DeathRestartConfig.DEFAULTS.manualRestartConfirmation());
+        var settings = DeathRestartConfig.DEFAULTS.withManualRestartConfirmation(false)
+                .withResetCountdownSeconds(45).withDeathLeaderboard(false).withBackupRetentionCount(5).normalized();
+        assertEquals(45, settings.resetCountdownSeconds());
+        assertFalse(settings.deathLeaderboard());
+        assertTrue(settings.countdownStartSound());
+        assertTrue(settings.countdownFinalSecondsSound());
+        assertEquals(5, settings.backupRetentionCount());
+        assertFalse(settings.manualRestartConfirmation());
+        assertTrue(settings.withManualRestartConfirmation(true).manualRestartConfirmation());
     }
 
     @Test

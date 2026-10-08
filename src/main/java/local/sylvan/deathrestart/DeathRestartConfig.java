@@ -17,7 +17,10 @@ public final class DeathRestartConfig {
     public static final List<Integer> COUNTDOWN_VALUES = List.of(5, 10, 15, 20, 30, 45, 60);
     public static final List<Integer> RECONNECT_INTERVAL_VALUES = List.of(1, 3, 5, 10, 15);
     public static final List<Integer> RECONNECT_TIMEOUT_VALUES = List.of(30, 60, 120, 300);
-    public static final Settings DEFAULTS = new Settings(ResetCountdown.DEFAULT_SECONDS, true, 5, 120, true);
+    /** Zero means that old-world backups are kept indefinitely. */
+    public static final List<Integer> BACKUP_RETENTION_VALUES = List.of(0, 1, 3, 5, 10, 20);
+    public static final Settings DEFAULTS = new Settings(
+            ResetCountdown.DEFAULT_SECONDS, true, 5, 120, true, StatisticsMode.USERNAME, true, true, 0, true);
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     // The integrated server reads settings on a different thread from the settings screen.
@@ -71,7 +74,12 @@ public final class DeathRestartConfig {
                     booleanValue(json, "automaticReconnect", DEFAULTS.automaticReconnect()),
                     intValue(json, "reconnectIntervalSeconds", DEFAULTS.reconnectIntervalSeconds()),
                     intValue(json, "reconnectTimeoutSeconds", DEFAULTS.reconnectTimeoutSeconds()),
-                    booleanValue(json, "deathLeaderboard", DEFAULTS.deathLeaderboard())).normalized();
+                    booleanValue(json, "deathLeaderboard", DEFAULTS.deathLeaderboard()),
+                    statisticsModeValue(json, "statisticsMode", DEFAULTS.statisticsMode()),
+                    booleanValue(json, "countdownStartSound", DEFAULTS.countdownStartSound()),
+                    booleanValue(json, "countdownFinalSecondsSound", DEFAULTS.countdownFinalSecondsSound()),
+                    intValue(json, "backupRetentionCount", DEFAULTS.backupRetentionCount()),
+                    booleanValue(json, "manualRestartConfirmation", DEFAULTS.manualRestartConfirmation())).normalized();
         } catch (RuntimeException failure) {
             throw new IOException("Invalid Death Restart settings: " + file, failure);
         }
@@ -91,6 +99,16 @@ public final class DeathRestartConfig {
         var value = json.get(key);
         if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isBoolean()) return fallback;
         return value.getAsBoolean();
+    }
+
+    private static StatisticsMode statisticsModeValue(JsonObject json, String key, StatisticsMode fallback) {
+        var value = json.get(key);
+        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) return fallback;
+        try {
+            return StatisticsMode.valueOf(value.getAsString());
+        } catch (IllegalArgumentException invalid) {
+            return fallback;
+        }
     }
 
     private static int supportedOrDefault(int value, List<Integer> allowed, int fallback) {
@@ -114,7 +132,17 @@ public final class DeathRestartConfig {
 
     public record Settings(int resetCountdownSeconds, boolean automaticReconnect,
                            int reconnectIntervalSeconds, int reconnectTimeoutSeconds,
-                           boolean deathLeaderboard) {
+                           boolean deathLeaderboard, StatisticsMode statisticsMode,
+                           boolean countdownStartSound, boolean countdownFinalSecondsSound,
+                           int backupRetentionCount, boolean manualRestartConfirmation) {
+        public Settings(int resetCountdownSeconds, boolean automaticReconnect,
+                        int reconnectIntervalSeconds, int reconnectTimeoutSeconds,
+                        boolean deathLeaderboard, StatisticsMode statisticsMode,
+                        boolean countdownStartSound, boolean countdownFinalSecondsSound) {
+            this(resetCountdownSeconds, automaticReconnect, reconnectIntervalSeconds, reconnectTimeoutSeconds,
+                    deathLeaderboard, statisticsMode, countdownStartSound, countdownFinalSecondsSound, 0, true);
+        }
+
         public Settings normalized() {
             return new Settings(
                     supportedOrDefault(resetCountdownSeconds, COUNTDOWN_VALUES, DEFAULTS.resetCountdownSeconds()),
@@ -123,7 +151,42 @@ public final class DeathRestartConfig {
                             DEFAULTS.reconnectIntervalSeconds()),
                     supportedOrDefault(reconnectTimeoutSeconds, RECONNECT_TIMEOUT_VALUES,
                             DEFAULTS.reconnectTimeoutSeconds()),
-                    deathLeaderboard);
+                    deathLeaderboard,
+                    statisticsMode == null ? DEFAULTS.statisticsMode() : statisticsMode,
+                    countdownStartSound,
+                    countdownFinalSecondsSound,
+                    supportedOrDefault(backupRetentionCount, BACKUP_RETENTION_VALUES,
+                            DEFAULTS.backupRetentionCount()),
+                    manualRestartConfirmation);
         }
+
+        public Settings withResetCountdownSeconds(int seconds) {
+            return new Settings(seconds, automaticReconnect, reconnectIntervalSeconds, reconnectTimeoutSeconds,
+                    deathLeaderboard, statisticsMode, countdownStartSound, countdownFinalSecondsSound,
+                    backupRetentionCount, manualRestartConfirmation);
+        }
+
+        public Settings withDeathLeaderboard(boolean enabled) {
+            return new Settings(resetCountdownSeconds, automaticReconnect, reconnectIntervalSeconds,
+                    reconnectTimeoutSeconds, enabled, statisticsMode, countdownStartSound,
+                    countdownFinalSecondsSound, backupRetentionCount, manualRestartConfirmation);
+        }
+
+        public Settings withBackupRetentionCount(int count) {
+            return new Settings(resetCountdownSeconds, automaticReconnect, reconnectIntervalSeconds,
+                    reconnectTimeoutSeconds, deathLeaderboard, statisticsMode, countdownStartSound,
+                    countdownFinalSecondsSound, count, manualRestartConfirmation);
+        }
+
+        public Settings withManualRestartConfirmation(boolean required) {
+            return new Settings(resetCountdownSeconds, automaticReconnect, reconnectIntervalSeconds,
+                    reconnectTimeoutSeconds, deathLeaderboard, statisticsMode, countdownStartSound,
+                    countdownFinalSecondsSound, backupRetentionCount, required);
+        }
+    }
+
+    public enum StatisticsMode {
+        USERNAME,
+        UUID
     }
 }
