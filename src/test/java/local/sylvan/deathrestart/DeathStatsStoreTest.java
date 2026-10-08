@@ -184,4 +184,67 @@ class DeathStatsStoreTest {
         assertThrows(IOException.class, () -> new DeathStatsStore(file));
         assertEquals(contents, Files.readString(file));
     }
+
+    @Test
+    void unsupportedHistoryIsPreservedAndNewDeathsSurviveWorldResets() throws IOException {
+        Path file = root.resolve("campaign.json");
+        String original = "{\"00000000-0000-0000-0000-000000000001\":{\"name\":\"Alice\",\"deaths\":4}}";
+        Files.writeString(file, original);
+
+        var recovered = DeathStatsStore.load(file);
+        assertEquals(original, Files.readString(recovered.preservedFile()));
+        assertTrue(recovered.stats().entries().isEmpty());
+        recovered.stats().recordDeath("Alice");
+        recovered.stats().save();
+
+        var nextRound = DeathStatsStore.load(file);
+        assertNull(nextRound.preservedFile());
+        assertEquals(1, nextRound.stats().entries().get("alice").deaths());
+        nextRound.stats().recordDeath("Alice");
+        nextRound.stats().save();
+        assertEquals(2, DeathStatsStore.load(file).stats().entries().get("alice").deaths());
+        assertEquals(original, Files.readString(recovered.preservedFile()));
+    }
+
+    @Test
+    void corruptHistoryIsPreservedWithoutImportingPartialEntries() throws IOException {
+        Path file = root.resolve("campaign.json");
+        String original = "{\"alice\":{\"name\":\"Alice\",\"deaths\":3},\"bob\":{\"name\":\"Bob\",\"deaths\":-1}}";
+        Files.writeString(file, original);
+
+        var recovered = DeathStatsStore.load(file);
+        assertTrue(recovered.stats().entries().isEmpty());
+        assertEquals(original, Files.readString(recovered.preservedFile()));
+        recovered.stats().recordDeath("Bob");
+        recovered.stats().save();
+        assertEquals(Map.of("bob", new DeathStatsStore.Entry("Bob", 1)),
+                new DeathStatsStore(file).entries());
+    }
+
+    @Test
+    void validHistoryIsLoadedWithoutCreatingBackups() throws IOException {
+        Path file = root.resolve("campaign.json");
+        var stats = new DeathStatsStore(file);
+        stats.recordDeath("Alice");
+        stats.save();
+
+        var loaded = DeathStatsStore.load(file);
+        assertNull(loaded.preservedFile());
+        assertEquals(1, loaded.stats().entries().get("alice").deaths());
+        try (var files = Files.list(root)) {
+            assertEquals(1, files.count());
+        }
+    }
+
+    @Test
+    void filesystemReadFailuresAreNotTreatedAsInvalidHistory() throws IOException {
+        Path file = Files.createDirectory(root.resolve("campaign.json"));
+        Files.writeString(file.resolve("keep.txt"), "preserve");
+
+        assertThrows(IOException.class, () -> DeathStatsStore.load(file));
+        assertEquals("preserve", Files.readString(file.resolve("keep.txt")));
+        try (var files = Files.list(root)) {
+            assertEquals(1, files.count());
+        }
+    }
 }

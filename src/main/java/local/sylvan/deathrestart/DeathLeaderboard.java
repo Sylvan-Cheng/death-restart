@@ -55,10 +55,16 @@ final class DeathLeaderboard {
         var file = FabricLoader.getInstance().getConfigDir()
                 .resolve("deathrestart/deaths").resolve(worldId + ".json");
         try {
-            stats = new DeathStatsStore(file);
+            var loaded = DeathStatsStore.load(file);
+            stats = loaded.stats();
             writable = true;
+            if (loaded.preservedFile() != null) {
+                DeathRestartMod.LOGGER.warn(
+                        "Preserved invalid death leaderboard at {}; starting a new persistent history at {}",
+                        loaded.preservedFile(), file);
+            }
         } catch (IOException failure) {
-            // Preserve a malformed existing file instead of replacing its historical counts.
+            // Filesystem failures must not overwrite a file that could not be safely preserved.
             DeathRestartMod.LOGGER.error(
                     "Cannot read death leaderboard; preserving {} and showing session totals", file, failure);
             try {

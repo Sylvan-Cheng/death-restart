@@ -44,7 +44,19 @@ public final class DeathStatsStore {
                 entries.put(key, new Entry(name, deaths));
             }
         } catch (RuntimeException failure) {
-            throw new IOException("Invalid death leaderboard file: " + file, failure);
+            throw new InvalidStatsException(file, failure);
+        }
+    }
+
+    /** Preserve unsupported or damaged data before starting a writable, independent history. */
+    public static LoadResult load(Path file) throws IOException {
+        try {
+            return new LoadResult(new DeathStatsStore(file), null);
+        } catch (InvalidStatsException invalid) {
+            Path preserved = file.resolveSibling(file.getFileName() + ".invalid-" + UUID.randomUUID() + ".bak");
+            // A failed move must leave the original in place; never replace a previous backup.
+            Files.move(file, preserved);
+            return new LoadResult(new DeathStatsStore(file), preserved);
         }
     }
 
@@ -134,5 +146,14 @@ public final class DeathStatsStore {
     }
 
     public record Entry(String name, int deaths) {
+    }
+
+    public record LoadResult(DeathStatsStore stats, Path preservedFile) {
+    }
+
+    private static final class InvalidStatsException extends IOException {
+        private InvalidStatsException(Path file, RuntimeException cause) {
+            super("Invalid death leaderboard file: " + file, cause);
+        }
     }
 }
