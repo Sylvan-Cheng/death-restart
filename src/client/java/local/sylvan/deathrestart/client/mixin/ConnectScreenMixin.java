@@ -9,9 +9,12 @@ import org.spongepowered.asm.mixin.Shadow;
 
 @Mixin(ConnectScreen.class)
 public abstract class ConnectScreenMixin implements ConnectScreenAccess {
-    @Shadow private volatile Connection connection;
-    @Shadow private ChannelFuture channelFuture;
-    @Shadow private volatile boolean aborted;
+    @Shadow
+    private volatile Connection connection;
+    @Shadow
+    private ChannelFuture channelFuture;
+    @Shadow
+    private volatile boolean aborted;
 
     @Override
     public void deathrestart$abortConnection() {
